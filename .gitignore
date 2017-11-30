@@ -1,0 +1,12 @@
+# Pycharm files
+.idea/
+
+# Zip files
+*.zip
+
+# Compiled python files
+*.pyc
+
+desktop.ini
+dist/
+build/
