@@ -13,22 +13,28 @@ import sys
 from threading import Thread
 
 platformio_folder = "E:\user\Google Drive\MADNERD\github"
-TITLE = "LibreConnect Uploader"
+TITLE = "LibreConnect Platformio"
 AUTHOR = "madnerd.org"
 EMAIL = "remi@madnerd.org"
-VER = 0.11
+VER = 0.12
+FPS = 60.0
+MUSIC_ENABLED = False
+
+# Colors
 COLOR_BACKGROUND = (0, 0, 0)
 COLOR_BLACK = (0, 0, 0)
 COLOR_WHITE = (255, 255, 255)
-FPS = 60.0
 MENU_BACKGROUND_COLOR = (228, 55, 36)
+
+# Loading Animation
 LOADING_ANIMATION_COUNT = 7
 LOADING_ANIMATION_SPEED = 15
 LOADING_ANIMATION_X = 200
 LOADING_ANIMATION_Y = 200
+
+# Arduino variables
 arduino_dirs = []
 arduino_inos = []
-
 
 #####################################
 # Search for platformio.ini files   #
@@ -47,7 +53,7 @@ def searching():
     print(arduino_inos)
 
 ##########################
-# Sprite Animation
+# Loading Sprite Animation
 ##########################
 def load_image(name):
     image = pygame.image.load(name)
@@ -80,12 +86,48 @@ class LoadingSprite(pygame.sprite.Sprite):
 ##########################
 
 def upload(dir,ino):
-    print(dir)
-    print(ino)
+    cmd='cd '+dir+' && platformio run'
+    try:
+        result = subprocess.check_output(cmd, stderr=subprocess.STDOUT, shell=True)
+    except:
+        result = "Failed"
+    print("---------------------------------")
+    print result
+    print ("--------------------------------")
+
+def upload_function(dir,ino):
+    main_menu.disable()
+    main_menu.reset(1)
+
+    bg_color = MENU_BACKGROUND_COLOR
+    loading_sprite = LoadingSprite()
+    loading_group = pygame.sprite.Group(loading_sprite)
+
+    print("Starting upload thread")
+    upload_thread = Thread(target=upload,args=(dir,ino))
+    upload_thread.daemon = True
+    upload_thread.start()
+
+    while upload_thread.isAlive():
+        clock.tick(LOADING_ANIMATION_SPEED)
+        playevents = pygame.event.get()
+        if playevents.type == pygame.QUIT:
+            exit()
+        surface.fill(bg_color)
+        pygame.display.flip()
+        loading_group.update()
+        loading_group.draw(surface)
+        pygame.display.flip()
+        clock.tick(LOADING_ANIMATION_SPEED)
+        main_menu.mainloop(playevents)
+
+        surface.fill(bg_color)
+        pygame.display.flip()  
+
+    menu_menu.enable() 
 
 def loading_function():
-    pygame.mixer.music.load('data/music/loading.ogg')
-    pygame.mixer.music.play(-1)
+
     bg_color = MENU_BACKGROUND_COLOR
     loading_sprite = LoadingSprite()
     loading_group = pygame.sprite.Group(loading_sprite)
@@ -161,9 +203,9 @@ os.environ['SDL_VIDEO_CENTERED'] = '1'
 ###################################
 screen_info = pygame.display.Info()
 # WINDOW_SIZE = (screen_info.current_w, screen_info.current_h)
-WINDOW_SIZE = (320,240) # Simulate TFT Screen
+# WINDOW_SIZE = (320,240) # Simulate TFT Screen
 #WINDOW_SIZE = (640,480) # Simulate TFT Screen
-#WINDOW_SIZE = (1024,768) # Simulate TFT Screen
+WINDOW_SIZE = (1024,768) # Simulate TFT Screen
 #WINDOW_SIZE = (1280,800) # Simulate TFT Screen
 #WINDOW_SIZE = (1440,900) # Simulate TFT Screen
 #WINDOW_SIZE = (1680,1050) # Simulate TFT Screen
@@ -171,7 +213,7 @@ WINDOW_SIZE = (320,240) # Simulate TFT Screen
 if WINDOW_SIZE[0] <= 320:
     FONT_SIZE_LARGE = 20
     FONT_SIZE_MEDIUM = 15
-    FONT_SIZE_SMALL = 5
+    FONT_SIZE_SMALL = 10
 elif WINDOW_SIZE[0] <= 640:
     FONT_SIZE_LARGE = 40
     FONT_SIZE_MEDIUM = 30
@@ -247,16 +289,18 @@ main_menu = pygameMenu.Menu(surface,
 while True:
 
     # Tick
-    clock.tick(60)
+    # clock.tick(60)
 
-
-
+    if(MUSIC_ENABLED):
+        pygame.mixer.music.load('data/music/loading.ogg')
+        pygame.mixer.music.play(-1)
+    
     loading_function()
+    
     i = 0
     for ino in arduino_inos:
         main_menu.add_option(ino,upload,arduino_dirs[i],ino)
         i = i+1
-
     main_menu.add_option('Quit', PYGAME_MENU_EXIT)
 
     # Application events
@@ -265,9 +309,10 @@ while True:
         if event.type == QUIT:
             sys.exit()
 
-    pygame.mixer.music.stop()
-    pygame.mixer.music.load('data/music/menu.ogg')
-    pygame.mixer.music.play(-1)
+    if(MUSIC_ENABLED):
+        pygame.mixer.music.stop()
+        pygame.mixer.music.load('data/music/menu.ogg')
+        pygame.mixer.music.play(-1)
     
     # Main menu
     main_menu.mainloop(events)
